@@ -48,10 +48,6 @@ def image_loader(image_name):
     return image
     
 
-base_path = "./Documents/GitHub/neural_style_transfer/"
-style_img = image_loader(base_path+"monet.jpg")
-content_img = image_loader(base_path+"twins.jpg")
-
     
 #######################################
 # Image Display
@@ -229,7 +225,7 @@ def get_input_optimizer(input_img):
     
     
 def run_style_transfer(cnn, normalization_mean, normalization_std,
-                       content_img, style_img, input_img, num_steps=300,
+                       content_img, style_img, input_img, num_steps=50,
                        style_weight=1000000, content_weight=1):
     """Run the style transfer."""
     print('Building the style transfer model..')
@@ -265,7 +261,7 @@ def run_style_transfer(cnn, normalization_mean, normalization_std,
 
         score = optimizer.step(closure)
         
-        if run % 50 == 0:
+        if run % 10 == 0:
             print("run {}:".format(run))
             print('Loss: {}'.format(score.data.numpy()[0]))
             print()
@@ -284,23 +280,30 @@ def run_style_transfer(cnn, normalization_mean, normalization_std,
 cnn_normalization_mean = torch.FloatTensor([0.485, 0.456, 0.406])
 cnn_normalization_std = torch.FloatTensor([0.229, 0.224, 0.225])
 
+
+# Load images 
+base_path = "./Documents/GitHub/neural_style_transfer/"
+style_img = image_loader(base_path+"monet.jpg")
+content_img = image_loader(base_path+"twins.jpg")
+
+
 # Load pre-trained model
-#cnn = models.SqueezeNet()
+#cnn_model = models.SqueezeNet()
 cnn_model = models.vgg19(pretrained=True)
 cnn = cnn_model.features.eval()
 
 # desired depth layers to compute style/content losses :
-content_layers_default = ['conv_4']
-style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
+content_layers_default = ['conv_3', 'conv_4']
+style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5','conv6']
 
 # Start with either noise or just the original content image
-input_img = content_img.clone()
-# input_img = torch.randn(content_img.data.size(), device=device)
+#input_img = content_img.clone()
+input_img = torch.randn(content_img.size())
 input_img_var = Variable(input_img)
 input_img_var.requires_grad=True
-    
+
 output = run_style_transfer(cnn, cnn_normalization_mean, cnn_normalization_std,
-                            content_img, style_img, input_img)
+                            content_img, style_img, input_img, num_steps=100)
 
 plt.figure()
 imshow(output, title='Output Image')
@@ -308,3 +311,5 @@ imshow(output, title='Output Image')
 # sphinx_gallery_thumbnail_number = 4
 plt.ioff()
 plt.show()
+
+
