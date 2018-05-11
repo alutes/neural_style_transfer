@@ -53,4 +53,10 @@ For this project, I wanted to use pytorch as it is the library I've been focusin
 To this end, I followed [these instructions](https://gist.github.com/dusty-nv/ef2b372301c00c0a9d3203e42fd83426) to install pytorch from source, as well as all of the dependencies (this is where you will use the .deb files from before).
 The reason we have to do this in an atypical fashion is that the Jetson is running aarch64 and isn't compatable with standard package manager installation (i.e. conda).  
 
-The final step of this process (running setup.py in the pytorch repository) is where I have gotten stuck, and still haven't overcome.
+The final step of this process (running setup.py in the pytorch repository) is where I have gotten stuck, and unfortunately I ran out of time before I could overcome this issue.
+
+## Neural Style Transfer
+Welp... even though it wasn't able to run on a GPU, I did do some lower resolution examples just on my laptop. You can open up the notebook titled Run_Style_Transfer.ipynb to see what I did. The examples still run in a few minutes, and still came out with some pretty pictures!
+
+## Notes
+In the future, I would try to do something which is a little more established. Based on some poking around, it doesn't look like too many people are out there running pytorch on Jetsons, so I ran into issue after issue. This led me into a rabbit hole of flashing the Jetson, memory swap, etc. which are all tasks with which I don't have a ton of experience, and ultimately ran me out of time. I also wasn't well set up not having a Linux box and having to use an unreliable VM.
