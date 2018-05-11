@@ -9,12 +9,13 @@ from __future__ import print_function
 import torch
 import matplotlib.pyplot as plt
 import torchvision.models as models
-from neural_style_transfer import imshow, run_style_transfer
+from neural_style_transfer import run_style_transfer
 import torchvision.transforms as transforms
 from PIL import Image
 from torch.autograd import Variable
 import os
 
+from matplotlib import pyplot as plt
 
 #######################################
 # Image load
@@ -42,10 +43,9 @@ def image_loader(image_name):
 
     
 #######################################
-# Image Display
+# Get Content and Style
 #######################################
     
-
 # Style images
 style_imgs = []
 for filename in os.listdir("./monet/"):
@@ -54,10 +54,23 @@ for filename in os.listdir("./monet/"):
 # Content Image
 content_img = image_loader("./twins.jpg")
 
-# Print each image
-imshow(style_imgs[0], title='Style Image')
-imshow(content_img, title='Content Image')
+# Show image
+unloader = transforms.ToPILImage()  # reconvert into PIL image
 
+def imshow(tensor):
+    image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
+    image = image.squeeze(0)      # remove the fake batch dimension
+    image = unloader(image)
+    plt.imshow(image)
+    
+# Print each image
+imshow(style_imgs[0])
+imshow(content_img)
+
+
+#######################################
+# Load Pre-trained model
+#######################################
 
 # Load pre-trained model
 #cnn_model = models.resnet18(pretrained=True)
@@ -65,8 +78,8 @@ cnn_model = models.vgg19(pretrained=True)
 cnn = cnn_model.features.eval()
 
 # desired depth layers to compute style/content losses :
-content_layers_default = ['conv_4']
-style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5','conv6']
+content_layers = ['conv_4']
+style_layers = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5','conv6']
 
 # Start with either noise or just the original content image
 #input_img = content_img.clone()

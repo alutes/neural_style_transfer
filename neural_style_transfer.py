@@ -11,13 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
-import matplotlib.pyplot as plt
-
-import torchvision.transforms as transforms
-
 from torch.autograd import Variable
-
 import copy
 
 
@@ -70,7 +64,7 @@ class StyleLoss(nn.Module):
         
 
 #######################################
-# Load Model
+# Normalization (not using this right now)
 #######################################
         
 # create a module to normalize input image so we can easily put it in a
@@ -136,12 +130,18 @@ def get_style_model_and_losses(cnn, style_imgs, # should be a list of image tens
 
         if name in style_layers:
             # Add loss from each style picture as a separate layer
+            target_features = []
             for img_num,style_img in enumerate(style_imgs):
                 # add style loss:
-                target_feature = model(Variable(style_img)).detach()
-                style_loss = StyleLoss(target_feature)
-                model.add_module("style_loss_{0}_{1}".format(i,img_num), style_loss)
-                style_losses.append(style_loss)
+                target_features.append(model(Variable(style_img)).detach())
+                
+            # Combine tensors
+            target_all = torch.cat(target_features, dim=0)
+            
+            # Style Loss
+            style_loss = StyleLoss(target_all)
+            model.add_module("style_loss_{0}_{1}".format(i,img_num), style_loss)
+            style_losses.append(style_loss)
 
     return model, style_losses, content_losses
     
@@ -154,12 +154,24 @@ def get_style_model_and_losses(cnn, style_imgs, # should be a list of image tens
     
 def run_style_transfer(cnn, 
                        content_img, style_imgs, # should be a list of image tensors 
-                       input_img_var, 
+                       start_random=False, 
                        content_layers=['conv_4'],
                        style_layers=['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5','conv6'],
                        num_steps=50,
                        style_weight=1000000, content_weight=1, print_iters=10):
     print('Building the style transfer model..')
+    
+    # Start with either noise or just the original content image
+    if start_random:
+        input_img = torch.randn(content_img.size())
+    else:
+        input_img = content_img.clone()
+        
+    # Convert to Variable so we can run backprop
+    input_img_var = Variable(input_img)
+    input_img_var.requires_grad=True
+
+    
     model, style_losses, content_losses = get_style_model_and_losses(cnn, style_imgs, content_img, content_layers, style_layers)
     
     # Think about changing this
@@ -197,8 +209,8 @@ def run_style_transfer(cnn,
             print("run {}:".format(run))
             print('Loss: {}'.format(score.data.numpy()[0]))
             print()
-            plt.figure()
-            imshow(input_img_var.data, title='Content Image')
+            #plt.figure()
+            #imshow(input_img_var.data, title='Content Image')
 
         
         
@@ -206,19 +218,3 @@ def run_style_transfer(cnn,
     input_img_var.data.clamp_(0, 1)
 
     return input_img_var.data
-    
-    
-#######################################
-# Image Display
-#######################################
-
-unloader = transforms.ToPILImage()  # reconvert into PIL image
-
-def imshow(tensor, title=None):
-    image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
-    image = image.squeeze(0)      # remove the fake batch dimension
-    image = unloader(image)
-    plt.imshow(image)
-    if title is not None:
-        plt.title(title)
-    plt.pause(0.001) # pause a bit so that plots are updated
