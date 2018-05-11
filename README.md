@@ -36,6 +36,8 @@ Now follow the instructions in this [video walkthrough](https://www.youtube.com/
 Finally, restart the Jetson. 
 
 ## Dependencies
+I'll want to run python 3.6 since it's what I'll build the prototype in on my laptop (the Jetson initially came outfitted with Python 2.7).
+
 ```console
 # Get python3.6
 sudo apt-get update
@@ -53,7 +55,7 @@ For this project, I wanted to use pytorch as it is the library I've been focusin
 To this end, I followed [these instructions](https://gist.github.com/dusty-nv/ef2b372301c00c0a9d3203e42fd83426) to install pytorch from source, as well as all of the dependencies (this is where you will use the .deb files from before).
 The reason we have to do this in an atypical fashion is that the Jetson is running aarch64 and isn't compatable with standard package manager installation (i.e. conda).  
 
-The final step of this process (running setup.py in the pytorch repository) is where I have gotten stuck, and unfortunately I ran out of time before I could overcome this issue.
+The final step of this process is where I have gotten stuck (I get errors just trying to import torch), and unfortunately I ran out of time before I could overcome this issue.
 
 ## Neural Style Transfer
 Welp... even though it wasn't able to run on a GPU, I did do some lower resolution examples just on my laptop. You can open up the notebook titled Run_Style_Transfer.ipynb to see what I did. The examples still run in a few minutes, and still came out with some pretty pictures!
