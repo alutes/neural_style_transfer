@@ -12,68 +12,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from PIL import Image
 import matplotlib.pyplot as plt
 
 import torchvision.transforms as transforms
-import torchvision.models as models
 
 from torch.autograd import Variable
 
 import copy
-
-
-#######################################
-# Image load
-#######################################
-
-# For set up I'll run on cpu, make the code flexible for when we go to gpu
-device = torch.cuda.device("cuda" if torch.cuda.is_available() else "cpu")
-gpu_available = torch.cuda.is_available()
-
-# desired size of the output image
-imsize = 512 if torch.cuda.is_available() else 128  # use small size if no gpu
-
-loader = transforms.Compose([
-    transforms.Resize([imsize,imsize]),  # scale imported image
-    transforms.ToTensor()])  # transform it into a torch tensor
-
-
-def image_loader(image_name):
-    image = Image.open(image_name)
-    # fake batch dimension required to fit network's input dimensions
-    image = loader(image).unsqueeze(0)
-    if gpu_available:
-        image = image.gpu()
-    return image
-    
-
-    
-#######################################
-# Image Display
-#######################################
-
-unloader = transforms.ToPILImage()  # reconvert into PIL image
-
-plt.ion()
-
-def imshow(tensor, title=None):
-    if not gpu_available:
-        image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
-    image = image.squeeze(0)      # remove the fake batch dimension
-    image = unloader(image)
-    plt.imshow(image)
-    if title is not None:
-        plt.title(title)
-    plt.pause(0.001) # pause a bit so that plots are updated
-
-
-plt.figure()
-imshow(style_img, title='Style Image')
-
-plt.figure()
-imshow(content_img, title='Content Image')
-
 
 
 #######################################
@@ -149,14 +94,11 @@ class Normalization(nn.Module):
 # Loss Function
 #######################################
         
-def get_style_model_and_losses(cnn, normalization_mean, normalization_std,
-                               style_img, content_img,
-                               content_layers=content_layers_default,
-                               style_layers=style_layers_default):
+def get_style_model_and_losses(cnn, style_imgs, # should be a list of image tensors
+                               content_img,
+                               content_layers,
+                               style_layers):
     cnn = copy.deepcopy(cnn)
-
-    # normalization module
-    normalization = Normalization(normalization_mean, normalization_std)
     
     # just in order to have an iterable access to or list of content/syle
     # losses
@@ -165,7 +107,7 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std,
 
     # assuming that cnn is a nn.Sequential, so we make a new nn.Sequential
     # to put in modules that are supposed to be activated sequentially
-    model = nn.Sequential() #normalization
+    model = nn.Sequential()
 
     i = 0  # increment every time we see a conv
     for layer in cnn.children():
@@ -174,9 +116,6 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std,
             name = 'conv_{}'.format(i)
         elif isinstance(layer, nn.ReLU):
             name = 'relu_{}'.format(i)
-            # The in-place version doesn't play very nicely with the ContentLoss
-            # and StyleLoss we insert below. So we replace with out-of-place
-            # ones here.
             layer = nn.ReLU(inplace=False)
         elif isinstance(layer, nn.MaxPool2d):
             name = 'pool_{}'.format(i)
@@ -196,20 +135,14 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std,
             content_losses.append(content_loss)
 
         if name in style_layers:
-            # add style loss:
-            target_feature = model(Variable(style_img)).detach()
-            style_loss = StyleLoss(target_feature)
-            model.add_module("style_loss_{}".format(i), style_loss)
-            style_losses.append(style_loss)
+            # Add loss from each style picture as a separate layer
+            for img_num,style_img in enumerate(style_imgs):
+                # add style loss:
+                target_feature = model(Variable(style_img)).detach()
+                style_loss = StyleLoss(target_feature)
+                model.add_module("style_loss_{0}_{1}".format(i,img_num), style_loss)
+                style_losses.append(style_loss)
 
-#==============================================================================
-#     # now we trim off the layers after the last content and style losses
-#     for i in range(len(model) - 1, -1, -1):
-#         if isinstance(model[i], ContentLoss) or isinstance(model[i], StyleLoss):
-#             break
-#     model = model[:(i + 1)]
-# 
-#==============================================================================
     return model, style_losses, content_losses
     
     
@@ -217,21 +150,20 @@ def get_style_model_and_losses(cnn, normalization_mean, normalization_std,
 #######################################
 # Input Images
 #######################################
-
-def get_input_optimizer(input_img):
-    # this line to show that input is a parameter that requires a gradient
-    optimizer = optim.LBFGS([input_img_var])
-    return optimizer
     
     
-def run_style_transfer(cnn, normalization_mean, normalization_std,
-                       content_img, style_img, input_img, num_steps=50,
-                       style_weight=1000000, content_weight=1):
-    """Run the style transfer."""
+def run_style_transfer(cnn, 
+                       content_img, style_imgs, # should be a list of image tensors 
+                       input_img_var, 
+                       content_layers=['conv_4'],
+                       style_layers=['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5','conv6'],
+                       num_steps=50,
+                       style_weight=1000000, content_weight=1, print_iters=10):
     print('Building the style transfer model..')
-    model, style_losses, content_losses = get_style_model_and_losses(cnn,
-        normalization_mean, normalization_std, style_img, content_img)
-    optimizer = get_input_optimizer(input_img)
+    model, style_losses, content_losses = get_style_model_and_losses(cnn, style_imgs, content_img, content_layers, style_layers)
+    
+    # Think about changing this
+    optimizer = optim.LBFGS([input_img_var])
 
     print('Optimizing..')
     for run in range(num_steps):
@@ -261,7 +193,7 @@ def run_style_transfer(cnn, normalization_mean, normalization_std,
 
         score = optimizer.step(closure)
         
-        if run % 10 == 0:
+        if run % print_iters == 0:
             print("run {}:".format(run))
             print('Loss: {}'.format(score.data.numpy()[0]))
             print()
@@ -275,41 +207,18 @@ def run_style_transfer(cnn, normalization_mean, normalization_std,
 
     return input_img_var.data
     
+    
+#######################################
+# Image Display
+#######################################
 
-# Normalization
-cnn_normalization_mean = torch.FloatTensor([0.485, 0.456, 0.406])
-cnn_normalization_std = torch.FloatTensor([0.229, 0.224, 0.225])
+unloader = transforms.ToPILImage()  # reconvert into PIL image
 
-
-# Load images 
-base_path = "./Documents/GitHub/neural_style_transfer/"
-style_img = image_loader(base_path+"monet.jpg")
-content_img = image_loader(base_path+"twins.jpg")
-
-
-# Load pre-trained model
-#cnn_model = models.SqueezeNet()
-cnn_model = models.vgg19(pretrained=True)
-cnn = cnn_model.features.eval()
-
-# desired depth layers to compute style/content losses :
-content_layers_default = ['conv_3', 'conv_4']
-style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5','conv6']
-
-# Start with either noise or just the original content image
-#input_img = content_img.clone()
-input_img = torch.randn(content_img.size())
-input_img_var = Variable(input_img)
-input_img_var.requires_grad=True
-
-output = run_style_transfer(cnn, cnn_normalization_mean, cnn_normalization_std,
-                            content_img, style_img, input_img, num_steps=100)
-
-plt.figure()
-imshow(output, title='Output Image')
-
-# sphinx_gallery_thumbnail_number = 4
-plt.ioff()
-plt.show()
-
-
+def imshow(tensor, title=None):
+    image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
+    image = image.squeeze(0)      # remove the fake batch dimension
+    image = unloader(image)
+    plt.imshow(image)
+    if title is not None:
+        plt.title(title)
+    plt.pause(0.001) # pause a bit so that plots are updated

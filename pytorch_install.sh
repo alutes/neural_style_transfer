@@ -15,6 +15,11 @@ pip install -U pip
 pip --version
 # pip 9.0.1 from /home/ubuntu/.local/lib/python2.7/site-packages (python 2.7)
 
+# Get make separately
+./bootstrap
+make
+make install
+  
 # clone pyTorch repo
 git clone http://github.com/pytorch/pytorch
 cd pytorch
@@ -24,12 +29,13 @@ git submodule update --init
 sudo pip install -U setuptools
 sudo pip install -r requirements.txt
 
-# Develop Mode:
-python setup.py build_deps
-sudo python setup.py develop
+# Install Mode
+sudo python setup.py install
 
-# Install Mode:  (substitute for Develop Mode commands)
-#sudo python setup.py install
+# Develop Mode (I didn't use this)
+#python setup.py build_deps
+#sudo python setup.py develop
+
 
 # Verify CUDA (from python interactive terminal)
 # import torch
