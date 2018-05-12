@@ -88,8 +88,12 @@ input_img_var = Variable(input_img)
 input_img_var.requires_grad=True
 
 # Run the output
-output = run_style_transfer(cnn, content_img, style_imgs, input_img_var, num_steps=10)
+output = run_style_transfer(cnn, content_img, style_imgs, num_steps=10)
 plt.figure()
-imshow(output, title='Output Image')
+imshow(output)
+
+
+output = run_style_transfer(cnn, content_img, style_imgs, num_steps=10, use_min=True)
+
 
 

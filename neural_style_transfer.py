@@ -239,9 +239,15 @@ class StyleLoss_Min(nn.Module):
         losses_all = F.mse_loss(G_rep, self.targets_all, reduce=False)
 
         # Minimum across target
-        losses_min = torch.min(losses_all,0)[0]
-                
-        self.loss = torch.sum(losses_min)
+        losses_min = torch.min(losses_all,0)
+        losses_min_val = losses_min[0]
+        losses_min_ind = losses_min[1]
+        
+        # Find the number of style changes 
+        vert_grad = (losses_min_ind[1:,:]!=losses_min_ind[:(a-1),:]).type(torch.FloatTensor)
+        horiz_grad = (losses_min_ind[:,1:]!=losses_min_ind[:,:(b-1)]).type(torch.FloatTensor)
+        
+        self.loss = torch.sum(losses_min_val)+torch.sum(vert_grad)+torch.sum(horiz_grad)
         return input
             
 
